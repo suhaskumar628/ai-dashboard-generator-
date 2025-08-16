@@ -1,10 +1,7 @@
-# fly.toml app configuration file generated for hello-fly-flask on 2023-06-12T17:22:20+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# fly.toml app configuration file
 
-app = "hello-fly-flask"
-primary_region = "ams"
+app = "ai-dashboard-generator"   # your app name on Fly.io
+primary_region = "iad"           # US region (iad = Virginia). Change if needed.
 
 [build]
   builder = "paketobuildpacks/builder:base"
@@ -17,4 +14,5 @@ primary_region = "ams"
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
+  processes = ["app"]
