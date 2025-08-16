@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AI Output</title>
+</head>
+<body>
+  <h1>AI-Generated Suggestions</h1>
+  <pre>{{ output }}</pre>
+  <p><a href="/">← Upload another CSV</a></p>
+</body>
+</html>
