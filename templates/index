@@ -43,20 +43,30 @@
     .foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
     code { background:#0b1220; padding:2px 6px; border-radius:6px; border:1px solid #1f2937 }
     .disabled { opacity:.6; cursor:not-allowed; }
+    .price { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hero" aria-live="polite">
       <h1>AI Data Dashboard Generator</h1>
-      <p>Upload a CSV → get cleaning steps, ready-to-run SQL, and dashboard suggestions.</p>
+      <p>Upload a CSV → get cleaning steps, SQL, and dashboard suggestions.</p>
     </div>
 
-    <!-- Success / Cancel notices from Stripe -->
+    <!-- Checkout notices -->
     {% if request.args.get('success') %}
-      <div class="notice good">Payment successful ✅ — thanks! Your full access is active.</div>
+      <div class="notice good">Payment successful ✅ — your access has been updated.</div>
     {% elif request.args.get('canceled') %}
       <div class="notice bad">Checkout canceled. You can try again anytime.</div>
+    {% endif %}
+
+    <!-- Free limit notice -->
+    {% if request.args.get('limit') and not pro %}
+      <div class="notice bad">Free limit reached. You have {{ remaining_free }} free runs left in the next {{ window_minutes }} minutes. Consider upgrading for more.</div>
+    {% endif %}
+
+    {% if pro %}
+      <div class="notice good">You have Full Access ✅ — unlimited runs enabled.</div>
     {% endif %}
 
     <div class="grid">
@@ -77,21 +87,57 @@
 
       <!-- Pricing / Checkout -->
       <aside class="card">
-        <h3 style="margin:0 0 6px;">Upgrade to Full Access</h3>
-        <div class="hint">Unlock unlimited runs & copyable outputs.</div>
+        <h3 style="margin:0 0 6px;">Upgrade Options</h3>
+        <div class="hint">Choose what fits you best.</div>
 
-        <form action="{{ url_for('create_checkout_session') }}" method="POST" style="margin-top:14px;" id="buyForm">
-          {% if stripe_key %}
-            <button type="submit" id="buyBtn">Buy Full Access – $29</button>
-          {% else %}
-            <button type="button" class="disabled" disabled>Stripe not configured</button>
-            <div class="foot">Set <code>STRIPE_PUBLISHABLE_KEY</code> and <code>STRIPE_SECRET_KEY</code>.</div>
-          {% endif %}
-        </form>
+        <div class="price">
+          <!-- Subscription -->
+          <form action="{{ url_for('create_check_out_session') if false else url_for('create_checkout_session') }}" method="POST" id="subForm">
+            <input type="hidden" name="plan" value="subscription" />
+            {% if pro %}
+              <button type="button" class="disabled" disabled>Subscribed / Unlimited</button>
+            {% elif stripe_key %}
+              <button type="submit" id="subBtn">Subscribe – $29/mo</button>
+            {% else %}
+              <button type="button" class="disabled" disabled>Stripe not configured</button>
+            {% endif %}
+          </form>
 
-        <div class="foot">
-          Test Mode: use card <code>4242 4242 4242 4242</code>, any future date, any CVC, any ZIP.
+          <!-- Credits pack -->
+          <form action="{{ url_for('create_checkout_session') }}" method="POST" id="credForm">
+            <input type="hidden" name="plan" value="credits10" />
+            {% if pro %}
+              <button type="button" class="disabled" disabled>Already Unlimited</button>
+            {% elif stripe_key %}
+              <button type="submit" id="credBtn">Buy {{ CREDITS_PER_PACK|default(10) }} Runs – ${{ 9 if not pro else 0 }}</button>
+            {% else %}
+              <button type="button" class="disabled" disabled>Stripe not configured</button>
+            {% endif %}
+          </form>
+
+          <!-- One-time (optional lifetime) -->
+          <form action="{{ url_for('create_checkout_session') }}" method="POST" id="oneForm">
+            <input type="hidden" name="plan" value="one_time" />
+            {% if pro %}
+              <button type="button" class="disabled" disabled>Already Upgraded</button>
+            {% elif stripe_key %}
+              <button type="submit" id="oneBtn">One-time Unlock – $29</button>
+            {% else %}
+              <button type="button" class="disabled" disabled>Stripe not configured</button>
+            {% endif %}
+          </form>
         </div>
+
+        <div class="foot" style="margin-top:8px;">
+          {% if not pro %}
+            Free runs left this window: <code>{{ remaining_free }}</code><br/>
+            Credits available: <code>{{ credits }}</code>
+          {% else %}
+            Unlimited access enabled.
+          {% endif %}
+        </div>
+
+        <div class="foot">Test Mode: use card <code>4242 4242 4242 4242</code>, any future date, any CVC, any ZIP.</div>
       </aside>
     </div>
 
@@ -101,22 +147,22 @@
   </div>
 
   <script>
-    // Prevent double submissions (quick client-side guard)
     function guard(formId, btnId) {
       const form = document.getElementById(formId);
       const btn  = document.getElementById(btnId);
       if (!form || !btn) return;
       form.addEventListener('submit', () => {
-        btn.disabled = true;
-        btn.classList.add('disabled');
-        const orig = btn.textContent;
-        btn.textContent = 'Working…';
-        setTimeout(() => { btn.textContent = orig; }, 8000); // auto-reset just in case
+        btn.disabled = true; btn.classList.add('disabled');
+        const prev = btn.textContent; btn.textContent = 'Redirecting…';
+        setTimeout(() => { btn.textContent = prev; btn.disabled = false; btn.classList.remove('disabled'); }, 8000);
       });
     }
     guard('uploadForm', 'genBtn');
-    guard('buyForm', 'buyBtn');
+    guard('subForm', 'subBtn');
+    guard('credForm', 'credBtn');
+    guard('oneForm', 'oneBtn');
   </script>
 </body>
 </html>
+
 
