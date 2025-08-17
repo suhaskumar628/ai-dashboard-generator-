@@ -3,12 +3,28 @@
 <head>
   <meta charset="utf-8">
   <title>AI Data Dashboard Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,Arial;margin:2rem;max-width:900px}
+    .box{padding:1rem;border:1px solid #ddd;border-radius:8px;margin-bottom:1rem}
+    button{padding:.6rem 1rem;cursor:pointer}
+  </style>
 </head>
 <body>
   <h1>Upload CSV → Get SQL & Dashboard Suggestions</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="csv_file" accept=".csv" required>
-    <button type="submit">Generate</button>
-  </form>
+  <div class="box">
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="csv_file" accept=".csv" required>
+      <button type="submit">Generate</button>
+    </form>
+  </div>
+
+  <div class="box">
+    <h2>Buy Full Access</h2>
+    <form action="/create-checkout-session" method="POST">
+      <button type="submit">Buy Now – $29</button>
+    </form>
+    <p><small>Payments run in Stripe <b>Test Mode</b> until you swap keys.</small></p>
+  </div>
 </body>
 </html>
