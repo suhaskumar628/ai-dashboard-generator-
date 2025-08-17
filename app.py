@@ -17,6 +17,9 @@ else:
 # Stripe (use TEST keys until you go live)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")  # optional, for /webhook
+stripe_price_id = os.getenv("STRIPE_PRICE_ID", "")  # optional: use a Dashboard Price instead of ad-hoc price
+
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
 else:
@@ -32,7 +35,6 @@ def run_gemini(csv_preview: str, columns: List[str]) -> str:
     """
     Sends a compact CSV preview + columns to Gemini and returns markdown text
     with Cleaning steps, SQL queries, and Dashboard recommendations.
-    NOTE: The prompt avoids markdown code fences to prevent rendering confusion.
     """
     if not GEMINI_API_KEY:
         return "Gemini API key not configured. Set GEMINI_API_KEY as an environment variable."
@@ -113,23 +115,70 @@ def create_checkout_session():
         return jsonify({"error": "Stripe is not configured"}), 400
 
     try:
-        session = stripe.checkout.Session.create(
-            mode="payment",
-            payment_method_types=["card"],
-            line_items=[{
+        # Prefer a Dashboard Price if provided (recurring or one-time) for tax/coupons/analytics
+        if stripe_price_id:
+            line_items = [{"price": stripe_price_id, "quantity": 1}]
+        else:
+            # Ad-hoc price_data as a fallback
+            line_items = [{
                 "price_data": {
                     "currency": "usd",
                     "product_data": {"name": "AI Data Dashboard Generator"},
                     "unit_amount": 2900,  # $29.00 in cents
                 },
                 "quantity": 1,
-            }],
+            }]
+
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=line_items,
+            allow_promotion_codes=True,
+            automatic_tax={"enabled": False},  # flip to True after configuring tax settings
             success_url=url_for("home", _external=True) + "?success=true",
             cancel_url=url_for("home", _external=True) + "?canceled=true",
         )
+        # Redirect user to the hosted Checkout page
         return redirect(session.url, code=303)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ---------- OPTIONAL: STRIPE WEBHOOK ----------
+@app.route("/webhook", methods=["POST"])
+def stripe_webhook():
+    if not STRIPE_WEBHOOK_SECRET:
+        # If you don't use webhooks, you can remove this route.
+        return "", 200
+
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature", "")
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=STRIPE_WEBHOOK_SECRET,
+        )
+    except Exception as e:
+        return jsonify({"error": f"Webhook error: {e}"}), 400
+
+    # Handle key events (expand as needed)
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        # e.g., mark order as paid, provision credits, send email, etc.
+        # session.get("id"), session.get("amount_total"), session.get("customer_details"), ...
+        pass
+
+    return "", 200
+
+
+# ===================== MAIN (LOCAL DEV) =====================
+if __name__ == "__main__":
+    # On Fly.io, gunicorn (via Procfile) will run this app.
+    # This is only for local development:
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8080")), debug=True)
+
 
 
 # ===================== MAIN (LOCAL DEV) =====================
