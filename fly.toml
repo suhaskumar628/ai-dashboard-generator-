@@ -1,17 +1,24 @@
-# Fly.io config
-app = "ai-dashboard-generator-us"   # <-- make sure this matches your Fly app name
-primary_region = "iad"              # US (Virginia). You can change to "sea" if preferred.
+app = "ai-dashboard-generator"
+primary_region = "lhr"
 
 [build]
-  builder = "paketobuildpacks/builder:base"
+  # If you already use a Dockerfile, keep it. Otherwise Fly will detect Python and use buildpacks.
 
 [env]
   PORT = "8080"
+  PYTHONUNBUFFERED = "1"
 
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "10s"
+  method = "GET"
+  path = "/health"
+  timeout = "2s"
