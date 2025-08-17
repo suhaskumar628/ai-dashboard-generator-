@@ -2,7 +2,6 @@ app = "ai-dashboard-generator"
 primary_region = "lhr"
 
 [build]
-  # If you already use a Dockerfile, keep it. Otherwise Fly will detect Python and use buildpacks.
 
 [env]
   PORT = "8080"
