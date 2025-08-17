@@ -1,2 +1,1 @@
-web: gunicorn -w 2 -k gthread -b 0.0.0.0:8080 app:app
-
+web: gunicorn app:app -b 0.0.0.0:$PORT --timeout 120
