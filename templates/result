@@ -2,23 +2,137 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <title>AI Dashboard Results</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Results • AI Data Dashboard Generator</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;max-width:860px;margin:40px auto;padding:0 16px}
-    pre{white-space:pre-wrap;word-wrap:break-word}
-    .card{border:1px solid #ddd;border-radius:10px;padding:18px}
-    a.button{display:inline-block;margin-top:10px;padding:10px 16px;background:#111;color:#fff;
-      text-decoration:none;border-radius:8px}
+    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --brand:#635bff; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 800px at 20% -10%, #1f2937, transparent),
+                  radial-gradient(1000px 800px at 100% 0%, #0b1220, transparent),
+                  var(--bg); color: var(--text);
+    }
+    .wrap { max-width: 880px; margin: 48px auto; padding: 0 20px; }
+    .hero h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0.2px; }
+    .hero .hint { color: var(--muted); font-size: 14px; margin-top: 2px; }
+    .card {
+      background: linear-gradient(180deg, #0f172a, #0b1220);
+      border: 1px solid #1f2937; border-radius: 16px; padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap: wrap; }
+    button, .btn {
+      background: var(--brand); color:#fff; border:0; border-radius:10px;
+      padding: 10px 14px; font-size: 15px; cursor:pointer;
+      transition: transform .06s ease, filter .2s ease;
+    }
+    button:hover, .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .btn-ghost { background:#1f2937; padding:8px 12px; border-radius:8px; text-decoration:none; color:#cbd5e1; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 24px; }
+    @media (min-width: 820px) { .grid { grid-template-columns: 2fr 1fr; } }
+    .notice {
+      border:1px solid #334155; background:#0b1323; padding:12px 14px; border-radius:10px;
+      color:#cbd5e1; font-size: 14px; margin-top: 16px;
+    }
+    .good { border-color:#14532d; background:#062312; color:#bbf7d0 }
+    .bad  { border-color:#7f1d1d; background:#220e0e; color:#fecaca }
+    .foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
+
+    /* Markdown content defaults */
+    .md { line-height: 1.6; }
+    .md h2, .md h3 { margin-top: 1.2em; }
+    .md code { background:#0b1220; padding:2px 6px; border-radius:6px; border:1px solid #1f2937 }
+    .md pre { background:#0b1220; padding:12px; border-radius:10px; overflow:auto; border:1px solid #1f2937 }
+    .md ul, .md ol { padding-left: 1.2em; }
+    .copy {
+      background:#1f2937; border:1px solid #334155; border-radius:8px;
+      padding:6px 10px; color:#e5e7eb; cursor:pointer; font-size:13px;
+    }
   </style>
 </head>
 <body>
-  <h1>Analysis</h1>
-  <div class="card">
-    <!-- The backend passes markdown-ish text; show it in <pre> for simplicity -->
-    <pre>{{ output }}</pre>
+  <div class="wrap">
+    <div class="hero">
+      <h1>AI Dashboard Generator Output</h1>
+      <div class="row" style="margin-top:8px;">
+        <a class="btn-ghost" href="{{ url_for('home') }}">← Back to Upload</a>
+        <button id="copyAll" class="copy" type="button" title="Copy all text">Copy All</button>
+      </div>
+      <div class="hint">You can copy the full analysis or proceed to unlock unlimited runs.</div>
+    </div>
+
+    <!-- Success / Cancel notices from Stripe (if redirected here later) -->
+    {% if request.args.get('success') %}
+      <div class="notice good">Payment successful ✅ — thanks! Your full access is active.</div>
+    {% elif request.args.get('canceled') %}
+      <div class="notice bad">Checkout canceled. You can try again anytime.</div>
+    {% endif %}
+
+    <div class="grid">
+      <!-- AI Output -->
+      <section class="card">
+        <!-- Fallback pre block in case JS fails -->
+        <div id="plain" style="white-space: pre-wrap; border: 1px solid #1f2937; padding: 1em; border-radius:10px; background:#0b1220; display:none;">
+          {{ output }}
+        </div>
+
+        <!-- Where the Markdown will be rendered -->
+        <article id="rendered" class="md"></article>
+      </section>
+
+      <!-- Stripe / Upsell -->
+      <aside class="card">
+        <h3 style="margin:0 0 6px;">Upgrade to Full Access</h3>
+        <div class="hint">Unlock unlimited runs & copyable outputs.</div>
+        <form action="{{ url_for('create_checkout_session') }}" method="POST" style="margin-top:14px;">
+          {% if stripe_key %}
+            <button type="submit">Buy Full Access – $29</button>
+          {% else %}
+            <button type="button" disabled style="opacity:.6;cursor:not-allowed;">Stripe not configured</button>
+            <div class="foot" style="margin-top:6px;">Set <code>STRIPE_PUBLISHABLE_KEY</code> and <code>STRIPE_SECRET_KEY</code>.</div>
+          {% endif %}
+        </form>
+        <div class="foot" style="margin-top:10px;">
+          Test Mode: use card <code>4242 4242 4242 4242</code>,
+          any future date, any CVC, any ZIP.
+        </div>
+      </aside>
+    </div>
+
+    <div class="foot">Tip: Save/print this page if you want to keep a snapshot of the analysis.</div>
   </div>
 
-  <a class="button" href="/">← Analyze another CSV</a>
+  <!-- Lightweight markdown rendering with graceful fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" integrity="sha384-2oXoF1oI4m5xg7G1l6p3t8e6y1R6QZCwVZ4i3H7kC3sYq9cQ2S0xq7n3Yv1h1N3q" crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      // The server passed markdown in {{ output }}; we embed it safely for JS.
+      const md = {{ output|tojson }};
+      const rendered = document.getElementById('rendered');
+      const plain = document.getElementById('plain');
+
+      try {
+        // Render markdown -> HTML
+        rendered.innerHTML = marked.parse(md || '');
+      } catch (e) {
+        // Fallback to plain text block
+        plain.style.display = 'block';
+      }
+
+      // Copy all button
+      document.getElementById('copyAll').addEventListener('click', async () => {
+        const text = md || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          const btn = document.getElementById('copyAll');
+          const prev = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => (btn.textContent = prev), 1200);
+        } catch (_) {}
+      });
+    })();
+  </script>
 </body>
 </html>
+
