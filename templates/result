@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <title>AI Output</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,Arial;margin:2rem;max-width:1000px}
+    pre{white-space:pre-wrap;word-wrap:break-word;background:#f6f6f6;padding:1rem;border-radius:8px}
+  </style>
 </head>
 <body>
   <h1>AI-Generated Suggestions</h1>
