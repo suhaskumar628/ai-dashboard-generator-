@@ -1,30 +1,47 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI Data Dashboard Generator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body{font-family:system-ui,Arial;margin:2rem;max-width:900px}
-    .box{padding:1rem;border:1px solid #ddd;border-radius:8px;margin-bottom:1rem}
-    button{padding:.6rem 1rem;cursor:pointer}
+    body{font-family:system-ui,Arial,sans-serif;max-width:860px;margin:40px auto;padding:0 16px}
+    header{margin-bottom:18px}
+    .card{border:1px solid #ddd;border-radius:10px;padding:18px}
+    .row{margin:16px 0}
+    button{padding:10px 16px;border:0;border-radius:8px;cursor:pointer}
+    .primary{background:#111;color:#fff}
+    .muted{color:#666}
   </style>
 </head>
 <body>
-  <h1>Upload CSV → Get SQL & Dashboard Suggestions</h1>
-  <div class="box">
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="csv_file" accept=".csv" required>
-      <button type="submit">Generate</button>
-    </form>
-  </div>
+  <header>
+    <h1>AI Data Dashboard Generator</h1>
+    <p class="muted">Upload a CSV → get cleaning steps, useful SQL, and dashboard suggestions.</p>
+  </header>
 
-  <div class="box">
-    <h2>Buy Full Access</h2>
-    <form action="/create-checkout-session" method="POST">
-      <button type="submit">Buy Now – $29</button>
+  <section class="card">
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <div class="row">
+        <input type="file" name="csv_file" accept=".csv" required />
+      </div>
+      <div class="row">
+        <button class="primary" type="submit">Analyze CSV</button>
+      </div>
     </form>
-    <p><small>Payments run in Stripe <b>Test Mode</b> until you swap keys.</small></p>
-  </div>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <h3>Support the project</h3>
+    <p class="muted">Test checkout runs in Stripe test mode.</p>
+    <form action="/create-checkout-session" method="post">
+      <button type="submit">Buy — $29</button>
+    </form>
+  </section>
+
+  <!-- Optional: show publishable key is loaded (not required) -->
+  <script>
+    // "{{ stripe_key | default('') }}";
+  </script>
 </body>
 </html>
