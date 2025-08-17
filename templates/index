@@ -7,43 +7,29 @@
   <style>
     :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; --brand:#635bff; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    body { margin: 0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background: radial-gradient(1200px 800px at 20% -10%, #1f2937, transparent),
                   radial-gradient(1000px 800px at 100% 0%, #0b1220, transparent),
-                  var(--bg); color: var(--text);
-    }
+                  var(--bg); color: var(--text); }
     .wrap { max-width: 880px; margin: 48px auto; padding: 0 20px; }
-    .hero h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: 0.2px; }
+    .hero h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: .2px; }
     .hero p { margin: 0; color: var(--muted) }
     .grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 24px; }
     @media (min-width: 820px) { .grid { grid-template-columns: 2fr 1fr; } }
-    .card {
-      background: linear-gradient(180deg, #0f172a, #0b1220);
-      border: 1px solid #1f2937; border-radius: 16px; padding: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.35);
-    }
+    .card { background: linear-gradient(180deg,#0f172a,#0b1220); border:1px solid #1f2937; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.35) }
     label { font-size: 14px; color: var(--muted) }
-    input[type="file"] {
-      width: 100%; padding: 10px; border: 1px dashed #334155; border-radius: 10px;
-      margin-top: 8px; background: #0b1220; color: var(--text);
-    }
-    .row { display:flex; gap:12px; align-items:center; margin-top: 14px; flex-wrap: wrap; }
-    button {
-      background: var(--brand); color:#fff; border:0; border-radius:10px;
-      padding: 10px 14px; font-size: 15px; cursor:pointer;
-      transition: transform .06s ease, filter .2s ease;
-    }
-    button:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    input[type="file"] { width:100%; padding:10px; border:1px dashed #334155; border-radius:10px; margin-top:8px; background:#0b1220; color:var(--text) }
+    .row { display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap }
+    button { background:var(--brand); color:#fff; border:0; border-radius:10px; padding:10px 14px; font-size:15px; cursor:pointer; transition:transform .06s ease,filter .2s ease }
+    button:hover { filter:brightness(1.05); transform:translateY(-1px) }
     .hint { font-size: 12px; color: var(--muted); margin-top: 8px }
-    .notice { border:1px solid #334155; background:#0b1323; padding:12px 14px; border-radius:10px;
-              color:#cbd5e1; font-size: 14px; margin-top:16px; }
+    .notice { border:1px solid #334155; background:#0b1323; padding:12px 14px; border-radius:10px; color:#cbd5e1; font-size:14px; margin-top:16px }
     .good { border-color:#14532d; background:#062312; color:#bbf7d0 }
     .bad  { border-color:#7f1d1d; background:#220e0e; color:#fecaca }
-    .foot { margin-top: 22px; font-size: 12px; color: var(--muted); }
+    .foot { margin-top:22px; font-size:12px; color:var(--muted) }
     code { background:#0b1220; padding:2px 6px; border-radius:6px; border:1px solid #1f2937 }
-    .disabled { opacity:.6; cursor:not-allowed; }
-    .price { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+    .disabled { opacity:.6; cursor:not-allowed }
+    .price { display:flex; flex-direction:column; gap:10px; margin-top:14px }
   </style>
 </head>
 <body>
@@ -53,46 +39,39 @@
       <p>Upload a CSV → get cleaning steps, SQL, and dashboard suggestions.</p>
     </div>
 
-    <!-- Checkout notices -->
     {% if request.args.get('success') %}
       <div class="notice good">Payment successful ✅ — your access has been updated.</div>
     {% elif request.args.get('canceled') %}
       <div class="notice bad">Checkout canceled. You can try again anytime.</div>
     {% endif %}
 
-    <!-- Free limit notice -->
     {% if request.args.get('limit') and not pro %}
       <div class="notice bad">Free limit reached. You have {{ remaining_free }} free runs left in the next {{ window_minutes }} minutes. Consider upgrading for more.</div>
     {% endif %}
-
     {% if pro %}
       <div class="notice good">You have Full Access ✅ — unlimited runs enabled.</div>
     {% endif %}
 
     <div class="grid">
-      <!-- CSV Upload -->
       <section class="card">
         <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
           <label for="csv_file">Upload CSV</label>
           <input id="csv_file" name="csv_file" type="file" accept=".csv,text/csv" required />
-
           <div class="row">
             <button type="submit" id="genBtn">Generate (Gemini)</button>
             <span class="hint">Max ~10&nbsp;MB; first rows are analyzed for speed.</span>
           </div>
-
           <div class="hint">Tip: If you see encoding errors, save the file as UTF-8 and try again.</div>
         </form>
       </section>
 
-      <!-- Pricing / Checkout -->
       <aside class="card">
         <h3 style="margin:0 0 6px;">Upgrade Options</h3>
         <div class="hint">Choose what fits you best.</div>
 
         <div class="price">
           <!-- Subscription -->
-          <form action="{{ url_for('create_check_out_session') if false else url_for('create_checkout_session') }}" method="POST" id="subForm">
+          <form action="{{ url_for('create_checkout_session') }}" method="POST" id="subForm">
             <input type="hidden" name="plan" value="subscription" />
             {% if pro %}
               <button type="button" class="disabled" disabled>Subscribed / Unlimited</button>
@@ -109,7 +88,7 @@
             {% if pro %}
               <button type="button" class="disabled" disabled>Already Unlimited</button>
             {% elif stripe_key %}
-              <button type="submit" id="credBtn">Buy {{ CREDITS_PER_PACK|default(10) }} Runs – ${{ 9 if not pro else 0 }}</button>
+              <button type="submit" id="credBtn">Buy {{ credits_per_pack }} Runs – ${{ credits_pack_price }}</button>
             {% else %}
               <button type="button" class="disabled" disabled>Stripe not configured</button>
             {% endif %}
@@ -147,20 +126,20 @@
   </div>
 
   <script>
-    function guard(formId, btnId) {
+    function guard(formId, btnId, workingText) {
       const form = document.getElementById(formId);
       const btn  = document.getElementById(btnId);
       if (!form || !btn) return;
       form.addEventListener('submit', () => {
         btn.disabled = true; btn.classList.add('disabled');
-        const prev = btn.textContent; btn.textContent = 'Redirecting…';
+        const prev = btn.textContent; btn.textContent = workingText || 'Redirecting…';
         setTimeout(() => { btn.textContent = prev; btn.disabled = false; btn.classList.remove('disabled'); }, 8000);
       });
     }
-    guard('uploadForm', 'genBtn');
-    guard('subForm', 'subBtn');
-    guard('credForm', 'credBtn');
-    guard('oneForm', 'oneBtn');
+    guard('uploadForm', 'genBtn', 'Analyzing…');
+    guard('subForm', 'subBtn', 'Redirecting…');
+    guard('credForm', 'credBtn', 'Redirecting…');
+    guard('oneForm', 'oneBtn', 'Redirecting…');
   </script>
 </body>
 </html>
