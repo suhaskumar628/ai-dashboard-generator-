@@ -14,12 +14,13 @@ if not SECRET_KEY:
     print("WARNING: SECRET_KEY not set. Sessions may not persist across restarts.")
 
 # ===================== HYBRID PRICING CONFIG =====================
-# Free tier (per browser session)
+# Free tier (per browser session; session cookie)
 FREE_RUNS_PER_WINDOW = int(os.getenv("FREE_RUNS_PER_WINDOW", "1"))
-FREE_WINDOW_SECONDS = int(os.getenv("FREE_WINDOW_SECONDS", "3600"))  # default: 1 hour
+FREE_WINDOW_SECONDS = int(os.getenv("FREE_WINDOW_SECONDS", "3600"))  # 1 hour default
+
 # Credits
 CREDITS_PER_PACK = int(os.getenv("CREDITS_PER_PACK", "10"))
-CREDITS_PACK_PRICE_USD = int(os.getenv("CREDITS_PACK_PRICE_USD", "9"))  # used only if no Stripe Price ID provided
+CREDITS_PACK_PRICE_USD = int(os.getenv("CREDITS_PACK_PRICE_USD", "9"))  # fallback if no Stripe Price ID
 
 # ===================== GEMINI =====================
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -33,10 +34,10 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")  # optional
 
-# Optional: use Dashboard Price IDs (recommended). If blank, we'll fall back to ad-hoc prices.
-STRIPE_PRICE_ID_SUBSCRIPTION = os.getenv("STRIPE_PRICE_ID_SUBSCRIPTION", "")  # e.g. monthly unlimited
-STRIPE_PRICE_ID_CREDITS      = os.getenv("STRIPE_PRICE_ID_CREDITS", "")       # e.g. 10-run pack
-STRIPE_PRICE_ID_ONE_TIME     = os.getenv("STRIPE_PRICE_ID_ONE_TIME", "")      # optional lifetime/unlimited
+# Recommended: use Dashboard Price IDs (cleaner analytics, coupons, tax, etc.)
+STRIPE_PRICE_ID_SUBSCRIPTION = os.getenv("STRIPE_PRICE_ID_SUBSCRIPTION", "")  # monthly unlimited
+STRIPE_PRICE_ID_CREDITS      = os.getenv("STRIPE_PRICE_ID_CREDITS", "")       # one-time credits pack
+STRIPE_PRICE_ID_ONE_TIME     = os.getenv("STRIPE_PRICE_ID_ONE_TIME", "")      # optional lifetime/unlock
 
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
@@ -76,7 +77,7 @@ def _remaining_free_runs() -> int:
 def _record_free_run() -> None:
     ts = session.get("runs", [])
     ts.append(_now())
-    session["runs"] = ts[-10:]  # keep the last few to avoid cookie bloat
+    session["runs"] = ts[-10:]  # keep a small tail to avoid cookie bloat
 
 # ===================== AI CORE =====================
 def run_gemini(csv_preview: str, columns: List[str]) -> str:
@@ -118,7 +119,7 @@ def health():
 
 @app.route("/", methods=["GET"])
 def home():
-    # Apply entitlement on redirect success (session-based MVP)
+    # Entitlement via success redirect (session-based MVP)
     if request.args.get("success"):
         plan = request.args.get("plan", "")
         if plan in ("subscription", "one_time"):
@@ -132,12 +133,14 @@ def home():
         pro=_is_pro(),
         credits=_get_credits(),
         remaining_free=_remaining_free_runs(),
-        window_minutes=FREE_WINDOW_SECONDS // 60
+        window_minutes=FREE_WINDOW_SECONDS // 60,
+        credits_per_pack=CREDITS_PER_PACK,
+        credits_pack_price=CREDITS_PACK_PRICE_USD
     )
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    # Gating logic: pro → allowed; else credits → consume; else free → check window
+    # Gate: pro → unlimited; else credits → consume; else free quota
     if not _is_pro():
         if _get_credits() > 0:
             _consume_credit()
@@ -150,7 +153,7 @@ def upload():
     if not f:
         return redirect(url_for("home"))
 
-    # Try default UTF-8, then latin-1
+    # Try default UTF-8, fallback to latin-1
     try:
         df = pd.read_csv(f)
     except UnicodeDecodeError:
@@ -181,11 +184,9 @@ def create_checkout_session():
     if not STRIPE_SECRET_KEY:
         return jsonify({"error": "Stripe is not configured"}), 400
 
-    # plan comes from hidden input: subscription | credits10 | one_time
     plan = request.form.get("plan", "").strip() or "subscription"
 
     try:
-        # Decide mode + line_items based on plan
         if plan == "subscription":
             if STRIPE_PRICE_ID_SUBSCRIPTION:
                 session_args = dict(
@@ -202,7 +203,6 @@ def create_checkout_session():
                     line_items=[{"price": STRIPE_PRICE_ID_CREDITS, "quantity": 1}],
                 )
             else:
-                # Ad-hoc price fallback for credits pack
                 session_args = dict(
                     mode="payment",
                     line_items=[{
@@ -222,7 +222,6 @@ def create_checkout_session():
                     line_items=[{"price": STRIPE_PRICE_ID_ONE_TIME, "quantity": 1}],
                 )
             else:
-                # Ad-hoc price fallback
                 session_args = dict(
                     mode="payment",
                     line_items=[{
@@ -250,7 +249,7 @@ def create_checkout_session():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ---------- OPTIONAL: STRIPE WEBHOOK (later, for real entitlements) ----------
+# ---------- OPTIONAL: WEBHOOK ----------
 @app.route("/webhook", methods=["POST"])
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
@@ -260,10 +259,10 @@ def stripe_webhook():
     try:
         event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
     except Exception as e:
-        return jsonify({"error": f"Webhook error: {e}"}), 400
+        return jsonify({"error": f"Webhook error: {e)}"}), 400
 
-    # Example: when a checkout is completed, you could set a persistent entitlement in your DB
     if event["type"] == "checkout.session.completed":
+        # For MVP we rely on success_url query params to grant access.
         pass
     return "", 200
 
